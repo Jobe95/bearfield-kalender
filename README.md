@@ -1,54 +1,57 @@
 # BearField Kalender 🐻
 
-Menyapp för BearField IT AB — håller koll på bokförings- och skattedeadlines.
+Menu bar app for BearField IT AB — tracks accounting and tax deadlines.
 
-## Filer
-
-| Fil | Syfte |
-|-----|-------|
-| `menuapp.py` | Menyappen + lokal webbserver (port 7331) |
-| `kalender.html` | Webbgränssnitt för att se och bocka av uppgifter |
-| `notify.py` | Skickar Mac-notiser om deadline inom 7 dagar |
-| `done_state.json` | Delade avbockningar (läses av alla tre) |
-| `setup.py` | py2app-konfiguration |
-| `bygg.sh` | Byggskript |
-
-## Bygg appen
+## Install
 
 ```bash
-bash bygg.sh
+curl -fsSL https://raw.githubusercontent.com/Jobe95/bearfield-kalender/main/install.sh | bash
 ```
 
-Kräver Python 3 och installerar py2app automatiskt.
-
-## Starta
-
+Specific version:
 ```bash
-open "/Applications/BearField Kalender.app"
+curl -fsSL https://raw.githubusercontent.com/Jobe95/bearfield-kalender/main/install.sh | bash -s v1.1
 ```
 
-Björnen 🐻 dyker upp i menyraden. Appen körs i bakgrunden utan Dock-ikon.
+## Files
 
-## Autostart
+| File | Purpose |
+|------|---------|
+| `menuapp.py` | Menu bar app + local web server (port 7331) |
+| `kalender.html` | Web UI for viewing and checking off tasks |
+| `notify.py` | Sends Mac notifications when deadline is within 7 days |
+| `done_state.json` | Shared completion state (used by all three) |
+| `setup.py` | py2app configuration |
+| `build.sh` | Build standalone .app |
+| `install.sh` | One-line installer |
+| `release.sh` | Tag and publish a new release |
+| `save.sh` | Quick commit and push |
+| `setup_git.sh` | First-time Git + GitHub setup |
 
-Lägg till i **Systeminställningar → Allmänt → Inloggningsobjekt**
-så startar den automatiskt vid inloggning.
+## Usage
 
-## Dagliga notiser
+The bear 🐻 lives in your menu bar. Click it to:
+- See upcoming deadlines
+- Check off completed tasks
+- Open the calendar web UI
+- Test a notification
+- Check for updates
 
-Notiser skickas automatiskt varje morgon 08:00 om en deadline är inom 7 dagar.
-Avbockade uppgifter skickar aldrig notis.
+## Releasing a new version
 
-Aktivera manuellt (körs redan om du kört installera.sh):
 ```bash
-# Schemalägg notify.py via launchd
-launchctl load ~/Library/LaunchAgents/se.bearfieldit.deadlinenotis.plist
+bash release.sh v1.1 "What changed in this version"
 ```
 
-## Avinstallera
+This updates the version in code, commits, tags, pushes, and creates a GitHub Release.
+The app will notify users automatically on next start.
+
+## Uninstall
 
 ```bash
-rm -rf "/Applications/BearField Kalender.app"
 launchctl unload ~/Library/LaunchAgents/se.bearfieldit.deadlinenotis.plist
 launchctl unload ~/Library/LaunchAgents/se.bearfieldit.menuapp.plist
+rm ~/Library/LaunchAgents/se.bearfieldit.deadlinenotis.plist
+rm ~/Library/LaunchAgents/se.bearfieldit.menuapp.plist
+rm -rf ~/Applications/BearFieldKalender
 ```

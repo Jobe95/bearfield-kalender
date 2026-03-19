@@ -153,7 +153,8 @@ async function save() {
 }
 
 function daysUntil(d) {
-  return Math.ceil((new Date(d) - today) / 86400000);
+  const [y,m,day] = d.split('-').map(Number);
+  return Math.round((new Date(y, m-1, day) - today) / 86400000);
 }
 
 function daysBadge(deadline, done) {

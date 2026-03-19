@@ -195,6 +195,8 @@ class BearFieldApp(rumps.App):
         items.append(rumps.MenuItem("📅  Öppna kalender",       callback=self.open_calendar))
         items.append(rumps.MenuItem("🔔  Testa notis",           callback=self.test_notification))
         items.append(rumps.MenuItem("🔄  Sök uppdateringar",     callback=self.check_update))
+        items.append(rumps.separator)
+        items.append(rumps.MenuItem("Starta om",                 callback=self.restart_app))
 
         self.menu.clear()
         self.menu = items
@@ -230,6 +232,10 @@ class BearFieldApp(rumps.App):
             task["title"],
             f"{task['cat']} · {days_str} ({task['deadline']})"
         )
+
+    def restart_app(self, _):
+        subprocess.Popen(["python3", os.path.join(SCRIPT_DIR, "menuapp.py")])
+        rumps.quit_application()
 
     @rumps.clicked("🔄  Sök uppdateringar")
     def check_update(self, _):

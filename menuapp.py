@@ -17,7 +17,7 @@ STATE_FILE = os.path.join(SCRIPT_DIR, "done_state.json")
 HTML_FILE  = os.path.join(SCRIPT_DIR, "kalender.html")
 PORT = 7331
 
-VERSION = "v0.0.3"
+VERSION = "v0.0.4"
 GITHUB_USER = "DITT_GITHUB_USERNAME"   # ← ändra detta
 GITHUB_REPO = "bearfield-kalender"
 GITHUB_API  = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"

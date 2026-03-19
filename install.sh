@@ -88,13 +88,8 @@ sed -i '' 's/GITHUB_USER = "DITT_GITHUB_USERNAME"/GITHUB_USER = "Jobe95"/' \
 
 # ── Sätt behörigheter ─────────────────────────────────────────────────────────
 info "Sätter behörigheter..."
-chmod +x "$INSTALL_DIR/menuapp.py"
-chmod +x "$INSTALL_DIR/notify.py"
-chmod +x "$INSTALL_DIR/installera.sh"
-chmod +x "$INSTALL_DIR/bygg.sh"
-chmod +x "$INSTALL_DIR/release.sh"
-chmod +x "$INSTALL_DIR/spara.sh"
-chmod +x "$INSTALL_DIR/git_setup.sh"
+find "$INSTALL_DIR" -name "*.sh" -exec chmod +x {} \;
+find "$INSTALL_DIR" -name "*.py" -exec chmod +x {} \;
 
 # Skapa done_state.json om den saknas
 [ -f "$INSTALL_DIR/done_state.json" ] || echo '{}' > "$INSTALL_DIR/done_state.json"

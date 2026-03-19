@@ -195,8 +195,6 @@ class BearFieldApp(rumps.App):
         items.append(rumps.MenuItem("📅  Öppna kalender",       callback=self.open_calendar))
         items.append(rumps.MenuItem("🔔  Testa notis",           callback=self.test_notification))
         items.append(rumps.MenuItem("🔄  Sök uppdateringar",     callback=self.check_update))
-        items.append(rumps.separator)
-        items.append(rumps.MenuItem("Avsluta", callback=rumps.quit_application))
 
         self.menu.clear()
         self.menu = items

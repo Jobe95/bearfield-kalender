@@ -65,7 +65,7 @@ info "Installerar version: ${BOLD}$VERSION${RESET}"
 if [ -d "$INSTALL_DIR/.git" ]; then
     info "Befintlig installation hittad — uppdaterar..."
     git -C "$INSTALL_DIR" fetch --tags -q
-    git -C "$INSTALL_DIR" stash -q 2>/dev/null || true
+    git -C "$INSTALL_DIR" reset --hard -q 2>/dev/null || true
     if [ "$USE_BRANCH" = true ]; then
         git -C "$INSTALL_DIR" pull -q
     else

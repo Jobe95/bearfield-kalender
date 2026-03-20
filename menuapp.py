@@ -11,7 +11,7 @@ import threading
 import urllib.request
 from datetime import date, datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from tasks import load_config, generate_tasks, load_state, save_state
+from tasks import load_config, save_config, generate_tasks, load_state, save_state
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 HTML_FILE  = os.path.join(SCRIPT_DIR, "kalender.html")
@@ -86,6 +86,26 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(200, generate_tasks())
         elif self.path == "/api/config":
             self.send_json(200, load_config())
+        elif self.path.startswith("/api/lookup-org?nr="):
+            org_nr = self.path.split("nr=")[1]
+            try:
+                url = f"https://api.opencorporates.com/v0.4/companies/se/{org_nr}"
+                req = urllib.request.Request(url, headers={"User-Agent": "BearFieldKalender"})
+                with urllib.request.urlopen(req, timeout=5) as r:
+                    result = json.loads(r.read())
+                name = result["results"]["company"]["name"]
+                self.send_json(200, {"name": name})
+            except Exception:
+                self.send_json(200, {"name": ""})
+        elif self.path == "/settings":
+            settings_file = os.path.join(SCRIPT_DIR, "settings.html")
+            with open(settings_file, "rb") as f:
+                body = f.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", len(body))
+            self.end_headers()
+            self.wfile.write(body)
         else:
             self.send_json(404, {"error": "not found"})
 
@@ -98,6 +118,17 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(200, {"ok": True})
                 if _app:
                     _app.rebuild_menu()
+            except Exception as e:
+                self.send_json(400, {"error": str(e)})
+        elif self.path == "/api/config":
+            length = int(self.headers.get("Content-Length", 0))
+            try:
+                data = json.loads(self.rfile.read(length))
+                save_config(data)
+                if _app:
+                    _app.config = load_config()
+                    _app.rebuild_menu()
+                self.send_json(200, {"ok": True})
             except Exception as e:
                 self.send_json(400, {"error": str(e)})
         else:
@@ -171,6 +202,7 @@ class BearFieldApp(rumps.App):
             items.append(rumps.separator)
 
         items.append(rumps.MenuItem("📅  Öppna kalender",       callback=self.open_calendar))
+        items.append(rumps.MenuItem("⚙️  Inställningar",        callback=self.open_settings))
         items.append(rumps.MenuItem("🔔  Testa notis",           callback=self.test_notification))
         items.append(rumps.MenuItem("🔄  Sök uppdateringar",     callback=self.check_update))
         items.append(rumps.separator)
@@ -195,6 +227,9 @@ class BearFieldApp(rumps.App):
 
     def open_calendar(self, _):
         subprocess.run(["open", f"http://localhost:{PORT}/"])
+
+    def open_settings(self, _):
+        subprocess.run(["open", f"http://localhost:{PORT}/settings"])
 
     def test_notification(self, _):
         done = load_state()

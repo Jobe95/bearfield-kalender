@@ -33,10 +33,6 @@
   }
   input:focus { outline: none; border-color: #534AB7; }
 
-  .org-row { display: flex; gap: 8px; align-items: flex-start; }
-  .org-row input { flex: 1; }
-  .org-row .lookup-status { font-size: 12px; color: #888; margin-top: 6px; white-space: nowrap; }
-
   .radio-group { display: flex; flex-direction: column; gap: 6px; }
   .radio-option { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
   .radio-option input[type="radio"] { accent-color: #534AB7; }
@@ -85,10 +81,7 @@
   <div class="card">
     <div class="field">
       <label>Organisationsnummer</label>
-      <div class="org-row">
-        <input type="text" id="org-nr" placeholder="5591234567" maxlength="12">
-        <div id="lookup-status" class="lookup-status"></div>
-      </div>
+      <input type="text" id="org-nr" placeholder="5591234567" maxlength="12">
       <div class="hint">10 siffror, bindestreck tillåtet</div>
     </div>
 
@@ -148,8 +141,6 @@
 <div class="toast" id="toast"></div>
 
 <script>
-let debounceTimer;
-
 async function loadConfig() {
   try {
     const r = await fetch('http://localhost:7331/api/config');
@@ -161,38 +152,6 @@ async function loadConfig() {
     document.getElementById('employer').checked = cfg.employer_registered !== false;
     document.getElementById('notif-time').value = cfg.notification_time || '08:00';
   } catch(e) {}
-}
-
-function setupOrgLookup() {
-  const input = document.getElementById('org-nr');
-  const status = document.getElementById('lookup-status');
-  const nameInput = document.getElementById('company-name');
-
-  input.addEventListener('input', () => {
-    const nr = input.value.replace(/[-\s]/g, '');
-    clearTimeout(debounceTimer);
-    if (nr.length === 10) {
-      status.textContent = 'Söker...';
-      debounceTimer = setTimeout(async () => {
-        try {
-          const r = await fetch(`http://localhost:7331/api/lookup-org?nr=${nr}`);
-          const data = await r.json();
-          if (data.name) {
-            status.textContent = '✓';
-            if (!nameInput.value || nameInput.value === 'Mitt AB') {
-              nameInput.value = data.name;
-            }
-          } else {
-            status.textContent = 'Ej hittat';
-          }
-        } catch(e) {
-          status.textContent = '';
-        }
-      }, 500);
-    } else {
-      status.textContent = '';
-    }
-  });
 }
 
 async function saveConfig() {
@@ -234,7 +193,6 @@ function showToast(msg) {
 }
 
 loadConfig();
-setupOrgLookup();
 </script>
 </body>
 </html>

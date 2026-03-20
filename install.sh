@@ -94,21 +94,8 @@ if [ ! -f "$CONFIG_FILE" ]; then
     read -p "  Organisationsnummer (10 siffror): " ORG_NR
     ORG_NR=$(echo "$ORG_NR" | tr -d '- ')
 
-    # Fetch company name from OpenCorporates
-    COMPANY_NAME=""
-    if [ -n "$ORG_NR" ]; then
-        info "Söker företagsnamn..."
-        COMPANY_NAME=$(curl -fsSL "https://api.opencorporates.com/v0.4/companies/se/$ORG_NR" 2>/dev/null \
-            | python3 -c "import sys,json; print(json.load(sys.stdin)['results']['company']['name'])" 2>/dev/null || echo "")
-    fi
-
-    if [ -n "$COMPANY_NAME" ]; then
-        read -p "  Företagsnamn [$COMPANY_NAME]: " INPUT_NAME
-        COMPANY_NAME="${INPUT_NAME:-$COMPANY_NAME}"
-    else
-        read -p "  Företagsnamn: " COMPANY_NAME
-        COMPANY_NAME="${COMPANY_NAME:-Mitt AB}"
-    fi
+    read -p "  Företagsnamn: " COMPANY_NAME
+    COMPANY_NAME="${COMPANY_NAME:-Mitt AB}"
 
     # Fiscal year end
     read -p "  Räkenskapsår slutar (MM-DD) [12-31]: " FY_END

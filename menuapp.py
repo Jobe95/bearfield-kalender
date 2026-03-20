@@ -86,17 +86,6 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(200, generate_tasks())
         elif self.path == "/api/config":
             self.send_json(200, load_config())
-        elif self.path.startswith("/api/lookup-org?nr="):
-            org_nr = self.path.split("nr=")[1]
-            try:
-                url = f"https://api.opencorporates.com/v0.4/companies/se/{org_nr}"
-                req = urllib.request.Request(url, headers={"User-Agent": "BearFieldKalender"})
-                with urllib.request.urlopen(req, timeout=5) as r:
-                    result = json.loads(r.read())
-                name = result["results"]["company"]["name"]
-                self.send_json(200, {"name": name})
-            except Exception:
-                self.send_json(200, {"name": ""})
         elif self.path == "/settings":
             settings_file = os.path.join(SCRIPT_DIR, "settings.html")
             with open(settings_file, "rb") as f:

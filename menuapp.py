@@ -84,6 +84,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(200, load_state())
         elif self.path == "/api/tasks":
             self.send_json(200, generate_tasks())
+        elif self.path == "/api/config":
+            self.send_json(200, load_config())
         else:
             self.send_json(404, {"error": "not found"})
 

@@ -89,19 +89,19 @@
 <body>
 <div class="app">
   <div class="header">
-    <h1>BearField IT AB</h1>
+    <h1 id="company-name"></h1>
     <p id="today-str"></p>
   </div>
 
   <div class="tabs">
     <button class="tab active" onclick="showTab('nu')">Just nu</button>
-    <button class="tab" onclick="showTab('mars')">Mars</button>
-    <button class="tab" onclick="showTab('kvartal')">Q1–Q2</button>
+    <button class="tab" onclick="showTab('manad')" id="tab-manad-btn"></button>
+    <button class="tab" onclick="showTab('kvartal')" id="tab-kvartal-btn"></button>
     <button class="tab" onclick="showTab('ar')">Hela året</button>
   </div>
 
   <div id="tab-nu"></div>
-  <div id="tab-mars" style="display:none"></div>
+  <div id="tab-manad" style="display:none"></div>
   <div id="tab-kvartal" style="display:none"></div>
   <div id="tab-ar" style="display:none"></div>
 </div>
@@ -113,30 +113,31 @@ today.setHours(0,0,0,0);
 document.getElementById('today-str').textContent =
   today.toLocaleDateString('sv-SE', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
 
-const TASKS = [
-  { id:'t1',  title:'Lås bokföringsperiod januari',        desc:'Bokföring låst t.o.m jan 2026 — sista dag 22 mars', deadline:'2026-03-22', cat:'Bokföring' },
-  { id:'t4',  title:'Lås bokföringsperiod februari',       desc:'Bokföring låst t.o.m feb 2026 — sista dag 31 mars', deadline:'2026-03-31', cat:'Bokföring' },
-  { id:'t5',  title:'Lås bokföringsperiod mars',           desc:'Bokföring låst t.o.m mars 2026 — sista dag 30 april', deadline:'2026-04-30', cat:'Bokföring' },
-  { id:'t6',  title:'Arbetsgivardeklaration mars',         desc:'Om du har anställda — senast 12 april', deadline:'2026-04-12', cat:'Lön' },
-  { id:'t7',  title:'Betala preliminärskatt april',        desc:'Varje månad den 12:e', deadline:'2026-04-12', cat:'Skatt' },
-  { id:'t2',  title:'Bokför alla transaktioner Q1',        desc:'Kontoutdrag, kvitton, leverantörsfakturor jan–mars', deadline:'2026-04-30', cat:'Bokföring' },
-  { id:'t3',  title:'Lämna in momsdeklaration Q1',         desc:'Jan–mars 2026, sista dag 12 maj', deadline:'2026-05-12', cat:'Moms' },
-  { id:'t8',  title:'Lämna in momsdeklaration Q2',         desc:'Apr–juni 2026, sista dag 17 aug', deadline:'2026-08-17', cat:'Moms' },
-  { id:'t9',  title:'Lämna in momsdeklaration Q3',         desc:'Jul–sep 2026, sista dag 17 nov', deadline:'2026-11-17', cat:'Moms' },
-  { id:'t10', title:'Lämna in momsdeklaration Q4',         desc:'Okt–dec 2026, sista dag 12 feb 2027', deadline:'2027-02-12', cat:'Moms' },
-  { id:'t11', title:'Bokslut och årsredovisning',          desc:'Räkenskapsår jan–dec 2026, klart senast juni 2027', deadline:'2027-06-30', cat:'Bokslut' },
-  { id:'t12', title:'Inkomstdeklaration bolag (INK2)',     desc:'Lämnas senast 1 juli 2027', deadline:'2027-07-01', cat:'Skatt' },
-];
+let TASKS = [];
 
 let doneState = {};
 
 async function loadState() {
   try {
-    const r = await fetch('http://localhost:7331/api/done');
-    doneState = await r.json();
-  } catch(e) { doneState = {}; }
+    const [tasksRes, doneRes] = await Promise.all([
+      fetch('http://localhost:7331/api/tasks'),
+      fetch('http://localhost:7331/api/done')
+    ]);
+    TASKS = await tasksRes.json();
+    doneState = await doneRes.json();
+  } catch(e) { TASKS = []; doneState = {}; }
   TASKS.forEach(t => t.done = !!doneState[t.id]);
   renderAll();
+}
+
+async function loadConfig() {
+  try {
+    const r = await fetch('http://localhost:7331/api/config');
+    const cfg = await r.json();
+    document.getElementById('company-name').textContent = cfg.company_name || 'Bolagskalender';
+  } catch(e) {
+    document.getElementById('company-name').textContent = 'Bolagskalender';
+  }
 }
 
 async function save() {
@@ -210,8 +211,8 @@ function renderNu() {
     el.appendChild(box);
   }
 
-  const total = TASKS.filter(t => daysUntil(t.deadline) <= 60 || t.deadline <= '2026-03-31').length;
-  const done = TASKS.filter(t => t.done && (daysUntil(t.deadline) <= 60 || t.deadline <= '2026-03-31')).length;
+  const total = TASKS.filter(t => daysUntil(t.deadline) <= 90).length;
+  const done = TASKS.filter(t => t.done && daysUntil(t.deadline) <= 90).length;
   const pct = total ? Math.round(100*done/total) : 0;
   const pr = document.createElement('div');
   pr.className = 'progress-row';
@@ -241,15 +242,45 @@ function renderFiltered(elId, from, to, title) {
   list.forEach(t => el.appendChild(makeTask(t)));
 }
 
+function getQuarterMonths() {
+  const m = today.getMonth(); // 0-based
+  const y = today.getFullYear();
+  const currentQ = Math.floor(m / 3);
+  const nextQ = (currentQ + 1) % 4;
+  const nextQYear = nextQ <= currentQ ? y + 1 : y;
+  const months = [];
+  for(let i = 0; i < 3; i++) {
+    const mo = currentQ * 3 + i;
+    const d = new Date(y, mo, 1);
+    const from = `${y}-${String(mo+1).padStart(2,'0')}-01`;
+    const lastDay = new Date(y, mo+1, 0).getDate();
+    const to = `${y}-${String(mo+1).padStart(2,'0')}-${lastDay}`;
+    const name = d.toLocaleDateString('sv-SE',{year:'numeric',month:'long'});
+    months.push([name.charAt(0).toUpperCase()+name.slice(1), from, to]);
+  }
+  for(let i = 0; i < 3; i++) {
+    const mo = nextQ * 3 + i;
+    const d = new Date(nextQYear, mo, 1);
+    const from = `${nextQYear}-${String(mo+1).padStart(2,'0')}-01`;
+    const lastDay = new Date(nextQYear, mo+1, 0).getDate();
+    const to = `${nextQYear}-${String(mo+1).padStart(2,'0')}-${lastDay}`;
+    const name = d.toLocaleDateString('sv-SE',{year:'numeric',month:'long'});
+    months.push([name.charAt(0).toUpperCase()+name.slice(1), from, to]);
+  }
+  return months;
+}
+
+function getQuarterLabel() {
+  const m = today.getMonth();
+  const currentQ = Math.floor(m / 3) + 1;
+  const nextQ = currentQ === 4 ? 1 : currentQ + 1;
+  return `Q${currentQ}–Q${nextQ}`;
+}
+
 function renderKvartal() {
   const el = document.getElementById('tab-kvartal');
   el.innerHTML = '';
-  const months = [
-    ['Mars 2026','2026-03-01','2026-03-31'],
-    ['April 2026','2026-04-01','2026-04-30'],
-    ['Maj 2026','2026-05-01','2026-05-31'],
-    ['Juni 2026','2026-06-01','2026-06-30'],
-  ];
+  const months = getQuarterMonths();
   months.forEach(([name, from, to]) => {
     const list = TASKS.filter(t => t.deadline >= from && t.deadline <= to);
     if(!list.length) return;
@@ -276,26 +307,47 @@ function renderAr() {
 
 function renderAll() {
   renderNu();
-  renderFiltered('tab-mars','2026-03-01','2026-03-31','Mars 2026');
+  const y = today.getFullYear();
+  const m = today.getMonth();
+  const from = `${y}-${String(m+1).padStart(2,'0')}-01`;
+  const lastDay = new Date(y, m+1, 0).getDate();
+  const to = `${y}-${String(m+1).padStart(2,'0')}-${lastDay}`;
+  const monthName = today.toLocaleDateString('sv-SE',{year:'numeric',month:'long'});
+  const monthLabel = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+  renderFiltered('tab-manad', from, to, monthLabel);
   renderKvartal();
   renderAr();
 }
 
 function showTab(name) {
-  ['nu','mars','kvartal','ar'].forEach(n => {
+  ['nu','manad','kvartal','ar'].forEach(n => {
     document.getElementById('tab-'+n).style.display = n===name?'block':'none';
   });
   document.querySelectorAll('.tab').forEach((b,i) => {
-    b.classList.toggle('active', ['nu','mars','kvartal','ar'][i]===name);
+    b.classList.toggle('active', ['nu','manad','kvartal','ar'][i]===name);
   });
 }
 
+// Dynamic tab labels
+const currentMonth = today.toLocaleDateString('sv-SE', {month: 'long'});
+const currentMonthCap = currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1);
+document.getElementById('tab-manad-btn').textContent = currentMonthCap;
+document.getElementById('tab-kvartal-btn').textContent = getQuarterLabel();
+
+loadConfig();
 loadState();
 setInterval(async () => {
   try {
-    const r = await fetch('http://localhost:7331/api/done');
-    const s = await r.json();
-    if(JSON.stringify(s) !== JSON.stringify(doneState)) {
+    const [tasksRes, doneRes] = await Promise.all([
+      fetch('http://localhost:7331/api/tasks'),
+      fetch('http://localhost:7331/api/done')
+    ]);
+    const newTasks = await tasksRes.json();
+    const s = await doneRes.json();
+    const tasksChanged = JSON.stringify(newTasks.map(t=>t.id)) !== JSON.stringify(TASKS.map(t=>t.id));
+    const stateChanged = JSON.stringify(s) !== JSON.stringify(doneState);
+    if(tasksChanged || stateChanged) {
+      TASKS = newTasks;
       doneState = s;
       TASKS.forEach(t => t.done = !!doneState[t.id]);
       renderAll();

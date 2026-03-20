@@ -180,3 +180,22 @@ def test_bookkeeping_lock_monthly_uses_vat_deadline():
     lock_jan = next(t for t in tasks if t["id"] == "lock-2026-01")
     # January → 12th of March = Mar 12 (Thursday, no shift)
     assert lock_jan["deadline"] == "2026-03-12"
+
+def test_jan_2026_quarterly_full_scenario():
+    """Real-world: quarterly VAT, Jan 2026 lock = Mar 23, Q1 VAT = May 12."""
+    cfg = dict(load_config("/nonexistent"))
+    cfg["vat_period"] = "quarterly"
+    cfg["employer_registered"] = False
+    tasks = generate_tasks(cfg, ref_date=date(2026, 3, 20))
+
+    # Bookkeeping lock for January: 50 days after Jan 31 = Mar 22 (Sun) → Mar 23
+    lock_jan = next(t for t in tasks if t["id"] == "lock-2026-01")
+    assert lock_jan["deadline"] == "2026-03-23"
+
+    # Q1 VAT declaration: May 12 (Tue, no shift)
+    vat_q1 = next(t for t in tasks if t["id"] == "vat-2026-Q1")
+    assert vat_q1["deadline"] == "2026-05-12"
+
+    # Preliminärskatt March: Mar 12 (Thu, no shift)
+    tax_mar = next(t for t in tasks if t["id"] == "tax-2026-03")
+    assert tax_mar["deadline"] == "2026-03-12"

@@ -86,44 +86,56 @@ fi
 CONFIG_FILE="$INSTALL_DIR/config.json"
 
 if [ ! -f "$CONFIG_FILE" ]; then
-    echo ""
-    echo -e "${BOLD}  🏢 Konfigurera ditt bolag${RESET}"
-    echo ""
+    # Check if stdin is a terminal (not piped via curl | bash)
+    if [ -t 0 ]; then
+        echo ""
+        echo -e "${BOLD}  🏢 Konfigurera ditt bolag${RESET}"
+        echo ""
 
-    # Org nr
-    read -p "  Organisationsnummer (10 siffror): " ORG_NR
-    ORG_NR=$(echo "$ORG_NR" | tr -d '- ')
+        # Org nr
+        read -p "  Organisationsnummer (10 siffror): " ORG_NR
+        ORG_NR=$(echo "$ORG_NR" | tr -d ' -')
 
-    read -p "  Företagsnamn: " COMPANY_NAME
-    COMPANY_NAME="${COMPANY_NAME:-Mitt AB}"
+        read -p "  Företagsnamn: " COMPANY_NAME
+        COMPANY_NAME="${COMPANY_NAME:-Mitt AB}"
 
-    # Fiscal year end
-    read -p "  Räkenskapsår slutar (MM-DD) [12-31]: " FY_END
-    FY_END="${FY_END:-12-31}"
+        # Fiscal year end
+        read -p "  Räkenskapsår slutar (MM-DD) [12-31]: " FY_END
+        FY_END="${FY_END:-12-31}"
 
-    # VAT period
-    echo "  Momsredovisningsperiod:"
-    echo "    1) Kvartalsvis (vanligast, omsättning 1-40 MSEK)"
-    echo "    2) Månadsvis (omsättning > 40 MSEK)"
-    echo "    3) Årsvis (omsättning < 1 MSEK)"
-    read -p "  Välj [1]: " VAT_CHOICE
-    case "$VAT_CHOICE" in
-        2) VAT_PERIOD="monthly" ;;
-        3) VAT_PERIOD="yearly" ;;
-        *) VAT_PERIOD="quarterly" ;;
-    esac
+        # VAT period
+        echo "  Momsredovisningsperiod:"
+        echo "    1) Kvartalsvis (vanligast, omsättning 1-40 MSEK)"
+        echo "    2) Månadsvis (omsättning > 40 MSEK)"
+        echo "    3) Årsvis (omsättning < 1 MSEK)"
+        read -p "  Välj [1]: " VAT_CHOICE
+        case "$VAT_CHOICE" in
+            2) VAT_PERIOD="monthly" ;;
+            3) VAT_PERIOD="yearly" ;;
+            *) VAT_PERIOD="quarterly" ;;
+        esac
 
-    # Employer registered
-    read -p "  Arbetsgivarregistrerad? (j/n) [j]: " EMPLOYER
-    if [ "$EMPLOYER" = "n" ] || [ "$EMPLOYER" = "N" ]; then
-        EMPLOYER_REG="false"
+        # Employer registered
+        read -p "  Arbetsgivarregistrerad? (j/n) [j]: " EMPLOYER
+        if [ "$EMPLOYER" = "n" ] || [ "$EMPLOYER" = "N" ]; then
+            EMPLOYER_REG="false"
+        else
+            EMPLOYER_REG="true"
+        fi
+
+        # Notification time
+        read -p "  Notistid (HH:MM) [08:00]: " NOTIF_TIME
+        NOTIF_TIME="${NOTIF_TIME:-08:00}"
     else
+        warn "Icke-interaktiv installation — använder standardvärden"
+        warn "Konfigurera via inställningar i appen efteråt"
+        ORG_NR=""
+        COMPANY_NAME="Mitt AB"
+        FY_END="12-31"
+        VAT_PERIOD="quarterly"
         EMPLOYER_REG="true"
+        NOTIF_TIME="08:00"
     fi
-
-    # Notification time
-    read -p "  Notistid (HH:MM) [08:00]: " NOTIF_TIME
-    NOTIF_TIME="${NOTIF_TIME:-08:00}"
 
     # Write config
     cat > "$CONFIG_FILE" << CFGEOF

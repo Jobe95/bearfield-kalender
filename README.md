@@ -28,6 +28,18 @@ curl -fsSL https://raw.githubusercontent.com/Jobe95/bearfield-kalender/main/inst
 | `save.sh` | Quick commit and push |
 | `setup_git.sh` | First-time Git + GitHub setup |
 
+## Setup
+
+Run the interactive installer to configure your org:
+
+```bash
+python3 setup_config.py
+```
+
+This creates `config.json` with your org type, registration date, and VAT/employer settings. Deadlines are generated dynamically from this config.
+
+To reconfigure, re-run the installer or edit `config.json` directly.
+
 ## Usage
 
 The bear 🐻 lives in your menu bar. Click it to:

@@ -4,4 +4,6 @@ __pycache__/
 *.pyc
 .DS_Store
 done_state.json
+config.json
+state.json
 .worktrees/

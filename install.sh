@@ -82,9 +82,78 @@ else
     success "Klonat till $INSTALL_DIR"
 fi
 
-# ── Uppdatera GITHUB_USER i menuapp.py ────────────────────────────────────────
-sed -i '' 's/GITHUB_USER = "DITT_GITHUB_USERNAME"/GITHUB_USER = "Jobe95"/' \
-    "$INSTALL_DIR/menuapp.py" 2>/dev/null || true
+# ── Konfigurera bolaget ──────────────────────────────────────────────────────
+CONFIG_FILE="$INSTALL_DIR/config.json"
+
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo ""
+    echo -e "${BOLD}  🏢 Konfigurera ditt bolag${RESET}"
+    echo ""
+
+    # Org nr
+    read -p "  Organisationsnummer (10 siffror): " ORG_NR
+    ORG_NR=$(echo "$ORG_NR" | tr -d '- ')
+
+    # Fetch company name from OpenCorporates
+    COMPANY_NAME=""
+    if [ -n "$ORG_NR" ]; then
+        info "Söker företagsnamn..."
+        COMPANY_NAME=$(curl -fsSL "https://api.opencorporates.com/v0.4/companies/se/$ORG_NR" 2>/dev/null \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['results']['company']['name'])" 2>/dev/null || echo "")
+    fi
+
+    if [ -n "$COMPANY_NAME" ]; then
+        read -p "  Företagsnamn [$COMPANY_NAME]: " INPUT_NAME
+        COMPANY_NAME="${INPUT_NAME:-$COMPANY_NAME}"
+    else
+        read -p "  Företagsnamn: " COMPANY_NAME
+        COMPANY_NAME="${COMPANY_NAME:-Mitt AB}"
+    fi
+
+    # Fiscal year end
+    read -p "  Räkenskapsår slutar (MM-DD) [12-31]: " FY_END
+    FY_END="${FY_END:-12-31}"
+
+    # VAT period
+    echo "  Momsredovisningsperiod:"
+    echo "    1) Kvartalsvis (vanligast, omsättning 1-40 MSEK)"
+    echo "    2) Månadsvis (omsättning > 40 MSEK)"
+    echo "    3) Årsvis (omsättning < 1 MSEK)"
+    read -p "  Välj [1]: " VAT_CHOICE
+    case "$VAT_CHOICE" in
+        2) VAT_PERIOD="monthly" ;;
+        3) VAT_PERIOD="yearly" ;;
+        *) VAT_PERIOD="quarterly" ;;
+    esac
+
+    # Employer registered
+    read -p "  Arbetsgivarregistrerad? (j/n) [j]: " EMPLOYER
+    if [ "$EMPLOYER" = "n" ] || [ "$EMPLOYER" = "N" ]; then
+        EMPLOYER_REG="false"
+    else
+        EMPLOYER_REG="true"
+    fi
+
+    # Notification time
+    read -p "  Notistid (HH:MM) [08:00]: " NOTIF_TIME
+    NOTIF_TIME="${NOTIF_TIME:-08:00}"
+
+    # Write config
+    cat > "$CONFIG_FILE" << CFGEOF
+{
+  "org_nr": "$ORG_NR",
+  "company_name": "$COMPANY_NAME",
+  "fiscal_year_end": "$FY_END",
+  "vat_period": "$VAT_PERIOD",
+  "employer_registered": $EMPLOYER_REG,
+  "notification_time": "$NOTIF_TIME"
+}
+CFGEOF
+
+    success "Konfiguration sparad"
+else
+    info "Befintlig konfiguration hittad — behåller"
+fi
 
 # ── Sätt behörigheter ─────────────────────────────────────────────────────────
 info "Sätter behörigheter..."
@@ -106,7 +175,11 @@ else
 fi
 
 # ── Sätt upp launchd-notiser ───────────────────────────────────────────────────
-info "Konfigurerar dagliga notiser (08:00)..."
+# Read notification time from config
+NOTIF_HOUR=$(python3 -c "import json; print(json.load(open('$CONFIG_FILE'))['notification_time'].split(':')[0])" 2>/dev/null || echo "08")
+NOTIF_MIN=$(python3 -c "import json; print(json.load(open('$CONFIG_FILE'))['notification_time'].split(':')[1])" 2>/dev/null || echo "00")
+
+info "Konfigurerar dagliga notiser ($NOTIF_HOUR:$NOTIF_MIN)..."
 PLIST_SRC="$INSTALL_DIR/se.bearfieldit.deadlinenotis.plist"
 PLIST_DEST="$HOME/Library/LaunchAgents/se.bearfieldit.deadlinenotis.plist"
 

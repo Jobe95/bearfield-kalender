@@ -44,6 +44,14 @@ def load_config(path=None):
     return cfg
 
 
+def save_config(cfg, path=None):
+    """Save config to JSON file."""
+    if path is None:
+        path = CONFIG_FILE
+    with open(path, "w") as f:
+        json.dump(cfg, f, indent=2)
+
+
 def load_state(path=None):
     """Load completion state from JSON file."""
     if path is None:

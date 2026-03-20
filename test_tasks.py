@@ -2,7 +2,7 @@ import json
 import os
 import tempfile
 from datetime import date
-from tasks import load_config, generate_tasks
+from tasks import load_config, save_config, generate_tasks
 
 def test_load_config_defaults():
     """Missing config file returns defaults."""
@@ -71,3 +71,18 @@ def test_stable_ids():
     t1 = generate_tasks(cfg, ref_date=date(2026, 3, 19))
     t2 = generate_tasks(cfg, ref_date=date(2026, 3, 19))
     assert [t["id"] for t in t1] == [t["id"] for t in t2]
+
+def test_save_and_load_config():
+    """save_config writes JSON that load_config reads back."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+        path = f.name
+    try:
+        cfg = {"org_nr": "5591234567", "company_name": "Test AB", "vat_period": "monthly",
+               "fiscal_year_end": "06-30", "employer_registered": False, "notification_time": "09:00"}
+        save_config(cfg, path)
+        loaded = load_config(path)
+        assert loaded["org_nr"] == "5591234567"
+        assert loaded["vat_period"] == "monthly"
+        assert loaded["employer_registered"] is False
+    finally:
+        os.unlink(path)

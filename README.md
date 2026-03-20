@@ -20,7 +20,9 @@ curl -fsSL https://raw.githubusercontent.com/Jobe95/bearfield-kalender/main/inst
 | `menuapp.py` | Menu bar app + local web server (port 7331) |
 | `kalender.html` | Web UI for viewing and checking off tasks |
 | `notify.py` | Sends Mac notifications when deadline is within 7 days |
-| `done_state.json` | Shared completion state (used by all three) |
+| `tasks.py` | Dynamic deadline generation from org config |
+| `config.json` | Org type, registration date, VAT/employer settings |
+| `state.json` | Shared completion state (used by all three) |
 | `setup.py` | py2app configuration |
 | `build.sh` | Build standalone .app |
 | `install.sh` | One-line installer |
@@ -30,15 +32,15 @@ curl -fsSL https://raw.githubusercontent.com/Jobe95/bearfield-kalender/main/inst
 
 ## Setup
 
-Run the interactive installer to configure your org:
+Run the installer to configure your org:
 
 ```bash
-python3 setup_config.py
+bash install.sh
 ```
 
 This creates `config.json` with your org type, registration date, and VAT/employer settings. Deadlines are generated dynamically from this config.
 
-To reconfigure, re-run the installer or edit `config.json` directly.
+To reconfigure, re-run `install.sh` or edit `config.json` directly.
 
 ## Usage
 

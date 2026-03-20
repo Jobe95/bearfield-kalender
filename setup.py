@@ -2,7 +2,7 @@ from setuptools import setup
 
 APP = ['menuapp.py']
 DATA_FILES = [
-    ('', ['kalender.html', 'done_state.json', 'notify.py']),
+    ('', ['kalender.html', 'state.json', 'notify.py', 'tasks.py']),
 ]
 OPTIONS = {
     'argv_emulation': False,

@@ -5,13 +5,9 @@ Körs varje morgon via launchd. Skickar Mac-notis om deadline inom 7 dagar.
 """
 
 import subprocess
-import os
 from datetime import date, datetime
 
 from tasks import generate_tasks, load_state
-
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-APP_HTML = os.path.join(SCRIPT_DIR, "kalender.html")
 
 def days_until(deadline_str):
     return (datetime.strptime(deadline_str, "%Y-%m-%d").date() - date.today()).days
@@ -21,9 +17,6 @@ def notify(title, subtitle, message):
     display notification "{message}" with title "{title}" subtitle "{subtitle}"
     '''
     subprocess.run(["osascript", "-e", script])
-
-def open_app(_):
-    subprocess.run(["open", APP_HTML])
 
 def main():
     done = load_state()

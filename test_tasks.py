@@ -2,7 +2,7 @@ import json
 import os
 import tempfile
 from datetime import date
-from tasks import load_config, save_config, generate_tasks
+from tasks import load_config, save_config, generate_tasks, _easter, _swedish_holidays, _next_business_day
 
 def test_load_config_defaults():
     """Missing config file returns defaults."""
@@ -86,3 +86,70 @@ def test_save_and_load_config():
         assert loaded["employer_registered"] is False
     finally:
         os.unlink(path)
+
+def test_easter_known_dates():
+    """Easter algorithm matches known dates."""
+    assert _easter(2025) == date(2025, 4, 20)
+    assert _easter(2026) == date(2026, 4, 5)
+    assert _easter(2027) == date(2027, 3, 28)
+    assert _easter(2030) == date(2030, 4, 21)
+
+def test_swedish_holidays_fixed():
+    """Fixed holidays are always present."""
+    h = _swedish_holidays(2026)
+    assert date(2026, 1, 1) in h
+    assert date(2026, 1, 6) in h
+    assert date(2026, 5, 1) in h
+    assert date(2026, 6, 6) in h
+    assert date(2026, 12, 24) in h
+    assert date(2026, 12, 25) in h
+    assert date(2026, 12, 26) in h
+    assert date(2026, 12, 31) in h
+
+def test_swedish_holidays_easter_derived():
+    """Easter-derived holidays for 2026 (Easter = Apr 5)."""
+    h = _swedish_holidays(2026)
+    assert date(2026, 4, 3) in h   # Långfredag (Easter-2)
+    assert date(2026, 4, 6) in h   # Annandag påsk (Easter+1)
+    assert date(2026, 5, 14) in h  # Kristi himmelsfärd (Easter+39)
+    assert date(2026, 5, 24) in h  # Pingstdagen (Easter+49)
+
+def test_swedish_holidays_midsommar():
+    """Midsommarafton is Friday Jun 19-25, Midsommardagen is Saturday Jun 20-26."""
+    h = _swedish_holidays(2026)
+    assert date(2026, 6, 19) in h  # Midsommarafton (Friday)
+    assert date(2026, 6, 20) in h  # Midsommardagen (Saturday)
+
+def test_swedish_holidays_alla_helgons_dag():
+    """Alla helgons dag is Saturday Oct 31–Nov 6."""
+    h = _swedish_holidays(2026)
+    assert date(2026, 10, 31) in h
+
+def test_next_business_day_weekday_unchanged():
+    """A regular weekday stays unchanged."""
+    assert _next_business_day(date(2026, 3, 18)) == date(2026, 3, 18)
+
+def test_next_business_day_saturday():
+    """Saturday advances to Monday."""
+    assert _next_business_day(date(2026, 3, 21)) == date(2026, 3, 23)
+
+def test_next_business_day_sunday():
+    """Sunday advances to Monday."""
+    assert _next_business_day(date(2026, 3, 22)) == date(2026, 3, 23)
+
+def test_next_business_day_holiday():
+    """Holiday on weekday advances to next business day."""
+    assert _next_business_day(date(2026, 1, 6)) == date(2026, 1, 7)
+
+def test_next_business_day_holiday_before_weekend():
+    """Friday holiday advances past weekend to Monday."""
+    # 2026-04-03 is Långfredag (Friday) → Sat → Sun → Mon Apr 6 is Annandag påsk → Tue Apr 7
+    assert _next_business_day(date(2026, 4, 3)) == date(2026, 4, 7)
+
+def test_next_business_day_christmas_chain():
+    """Dec 24 (Thu 2026) → skip 24,25,26 (holidays) → 27 (Sat) → 28 (Sun) → Mon 29."""
+    assert _next_business_day(date(2026, 12, 24)) == date(2026, 12, 28)
+
+def test_next_business_day_new_years_eve():
+    """Dec 31 is holiday. 2025-12-31 is Wed → Jan 1 (holiday Thu) → Jan 2 Fri."""
+    assert _next_business_day(date(2025, 12, 31)) == date(2026, 1, 2)

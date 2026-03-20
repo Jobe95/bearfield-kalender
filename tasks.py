@@ -91,6 +91,62 @@ def _add_months(d, months):
     return date(y, m, day)
 
 
+def _easter(year):
+    """Compute Easter Sunday for a given year (Anonymous Gregorian algorithm)."""
+    a = year % 19
+    b, c = divmod(year, 100)
+    d, e = divmod(b, 4)
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = divmod(c, 4)
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month, day = divmod(h + l - 7 * m + 114, 31)
+    return date(year, month, day + 1)
+
+
+def _swedish_holidays(year):
+    """Return set of Swedish public holidays + non-working days for a year."""
+    easter = _easter(year)
+    holidays = {
+        date(year, 1, 1),    # Nyårsdagen
+        date(year, 1, 6),    # Trettondedag jul
+        date(year, 5, 1),    # Första maj
+        date(year, 6, 6),    # Nationaldagen
+        date(year, 12, 24),  # Julafton
+        date(year, 12, 25),  # Juldagen
+        date(year, 12, 26),  # Annandag jul
+        date(year, 12, 31),  # Nyårsafton
+        easter + timedelta(days=-2),   # Långfredag
+        easter + timedelta(days=1),    # Annandag påsk
+        easter + timedelta(days=39),   # Kristi himmelsfärd
+        easter + timedelta(days=49),   # Pingstdagen
+    }
+    # Midsommarafton: Friday between Jun 19-25
+    for d in range(19, 26):
+        candidate = date(year, 6, d)
+        if candidate.weekday() == 4:  # Friday
+            holidays.add(candidate)
+            holidays.add(candidate + timedelta(days=1))  # Midsommardagen
+            break
+    # Alla helgons dag: Saturday between Oct 31–Nov 6
+    for offset in range(7):
+        candidate = date(year, 10, 31) + timedelta(days=offset)
+        if candidate.weekday() == 5:  # Saturday
+            holidays.add(candidate)
+            break
+    return holidays
+
+
+def _next_business_day(d):
+    """Advance date to next business day if it falls on weekend or Swedish holiday."""
+    holidays = _swedish_holidays(d.year) | _swedish_holidays(d.year + 1)
+    while d.weekday() >= 5 or d in holidays:
+        d += timedelta(days=1)
+    return d
+
+
 def _quarter_end(year, q):
     """Return last day of quarter q (1-4)."""
     month = q * 3

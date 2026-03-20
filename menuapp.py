@@ -11,9 +11,9 @@ import threading
 import urllib.request
 from datetime import date, datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from tasks import load_config, generate_tasks, load_state, save_state
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-STATE_FILE = os.path.join(SCRIPT_DIR, "done_state.json")
 HTML_FILE  = os.path.join(SCRIPT_DIR, "kalender.html")
 PORT = 7331
 
@@ -21,34 +21,6 @@ VERSION = "v0.0.4"
 GITHUB_USER = "DITT_GITHUB_USERNAME"   # ← ändra detta
 GITHUB_REPO = "bearfield-kalender"
 GITHUB_API  = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"
-
-TASKS = [
-    {"id": "t1",  "title": "Lås bokföringsperiod januari",      "deadline": "2026-03-22", "cat": "Bokföring"},
-    {"id": "t4",  "title": "Lås bokföringsperiod februari",     "deadline": "2026-03-31", "cat": "Bokföring"},
-    {"id": "t5",  "title": "Lås bokföringsperiod mars",         "deadline": "2026-04-30", "cat": "Bokföring"},
-    {"id": "t6",  "title": "Arbetsgivardeklaration mars",       "deadline": "2026-04-12", "cat": "Lön"},
-    {"id": "t7",  "title": "Betala preliminärskatt april",      "deadline": "2026-04-12", "cat": "Skatt"},
-    {"id": "t2",  "title": "Bokför alla transaktioner Q1",      "deadline": "2026-04-30", "cat": "Bokföring"},
-    {"id": "t3",  "title": "Momsdeklaration Q1",                "deadline": "2026-05-12", "cat": "Moms"},
-    {"id": "t8",  "title": "Momsdeklaration Q2",                "deadline": "2026-08-17", "cat": "Moms"},
-    {"id": "t9",  "title": "Momsdeklaration Q3",                "deadline": "2026-11-17", "cat": "Moms"},
-    {"id": "t10", "title": "Momsdeklaration Q4",                "deadline": "2027-02-12", "cat": "Moms"},
-    {"id": "t11", "title": "Bokslut och årsredovisning",        "deadline": "2027-06-30", "cat": "Bokslut"},
-    {"id": "t12", "title": "Inkomstdeklaration bolag (INK2)",   "deadline": "2027-07-01", "cat": "Skatt"},
-]
-
-# ── State ──────────────────────────────────────────────────────────────────────
-
-def load_done():
-    try:
-        with open(STATE_FILE) as f:
-            return json.load(f)
-    except Exception:
-        return {}
-
-def save_done(done):
-    with open(STATE_FILE, "w") as f:
-        json.dump(done, f, indent=2)
 
 # ── Uppdateringskoll ───────────────────────────────────────────────────────────
 
@@ -109,7 +81,9 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
         elif self.path == "/api/done":
-            self.send_json(200, load_done())
+            self.send_json(200, load_state())
+        elif self.path == "/api/tasks":
+            self.send_json(200, generate_tasks())
         else:
             self.send_json(404, {"error": "not found"})
 
@@ -118,7 +92,7 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", 0))
             try:
                 data = json.loads(self.rfile.read(length))
-                save_done(data)
+                save_state(data)
                 self.send_json(200, {"ok": True})
                 if _app:
                     _app.rebuild_menu()
@@ -148,6 +122,7 @@ def deadline_label(task, done):
 class BearFieldApp(rumps.App):
     def __init__(self):
         super().__init__("🐻", quit_button=None)
+        self.config = load_config()
         self.rebuild_menu()
         # Kolla uppdateringar i bakgrunden vid start
         threading.Thread(target=self._bg_update_check, daemon=True).start()
@@ -163,12 +138,13 @@ class BearFieldApp(rumps.App):
             )
 
     def rebuild_menu(self):
-        done = load_done()
-        urgent = [t for t in TASKS if not done.get(t["id"]) and 0 <= days_until(t["deadline"]) <= 7]
+        done = load_state()
+        tasks = generate_tasks(self.config)
+        urgent = [t for t in tasks if not done.get(t["id"]) and 0 <= days_until(t["deadline"]) <= 7]
         self.title = f"🐻 {len(urgent)}" if urgent else "🐻"
 
         items = []
-        items.append(rumps.MenuItem(f"BearField IT AB  {VERSION}", callback=None))
+        items.append(rumps.MenuItem(f"{self.config['company_name']}  {VERSION}", callback=None))
         items.append(rumps.separator)
 
         if urgent:
@@ -177,14 +153,14 @@ class BearFieldApp(rumps.App):
                 items.append(self.make_item(t, done))
             items.append(rumps.separator)
 
-        upcoming = [t for t in TASKS if not done.get(t["id"]) and days_until(t["deadline"]) > 7]
+        upcoming = [t for t in tasks if not done.get(t["id"]) and days_until(t["deadline"]) > 7]
         if upcoming:
             items.append(rumps.MenuItem("Kommande", callback=None))
             for t in sorted(upcoming, key=lambda x: x["deadline"])[:6]:
                 items.append(self.make_item(t, done))
             items.append(rumps.separator)
 
-        done_tasks = [t for t in TASKS if done.get(t["id"])]
+        done_tasks = [t for t in tasks if done.get(t["id"])]
         if done_tasks:
             sub = rumps.MenuItem("Avklarade")
             for t in done_tasks:
@@ -207,20 +183,21 @@ class BearFieldApp(rumps.App):
         return item
 
     def toggle_done(self, sender):
-        done = load_done()
+        done = load_state()
         if done.get(sender.task_id):
             del done[sender.task_id]
         else:
             done[sender.task_id] = True
-        save_done(done)
+        save_state(done)
         self.rebuild_menu()
 
     def open_calendar(self, _):
         subprocess.run(["open", f"http://localhost:{PORT}/"])
 
     def test_notification(self, _):
-        done = load_done()
-        upcoming = [t for t in TASKS if not done.get(t["id"]) and days_until(t["deadline"]) >= 0]
+        done = load_state()
+        tasks = generate_tasks(self.config)
+        upcoming = [t for t in tasks if not done.get(t["id"]) and days_until(t["deadline"]) >= 0]
         if not upcoming:
             rumps.notification("BearField IT", "Inga kommande deadlines", "Alla uppgifter är avklarade!")
             return

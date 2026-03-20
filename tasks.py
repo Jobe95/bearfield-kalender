@@ -256,18 +256,25 @@ def _prelim_tax_deadlines(ref_date):
     return tasks
 
 
-def _bookkeeping_lock_deadlines(ref_date):
-    """Generate monthly bookkeeping lock deadlines (~30 days after month end)."""
+def _bookkeeping_lock_deadlines(ref_date, vat_period):
+    """Generate monthly bookkeeping lock deadlines based on VAT period.
+
+    BFL 5:2 rules:
+    - quarterly/yearly VAT: 50 days after month end
+    - monthly VAT: 12th of 2nd month after (aligns with VAT return due date)
+    """
     tasks = []
     window_start = ref_date - timedelta(days=30)
     window_end = ref_date + timedelta(days=365)
 
     for year in range(ref_date.year, ref_date.year + 2):
         for month in range(1, 13):
-            # Lock period for this month, due ~end of next month
-            next_m = month + 1 if month < 12 else 1
-            next_y = year if month < 12 else year + 1
-            due = date(next_y, next_m, monthrange(next_y, next_m)[1])
+            month_end = date(year, month, monthrange(year, month)[1])
+            if vat_period in ("quarterly", "yearly"):
+                due = _next_business_day(month_end + timedelta(days=50))
+            else:
+                # monthly: 12th of 2nd month after
+                due = _next_business_day(_add_months(month_end, 2).replace(day=12))
             if window_start <= due <= window_end:
                 m_name = _swedish_month(month)
                 tasks.append({
@@ -380,7 +387,7 @@ def generate_tasks(cfg=None, ref_date=None):
     tasks.extend(_prelim_tax_deadlines(ref_date))
 
     # Bookkeeping lock
-    tasks.extend(_bookkeeping_lock_deadlines(ref_date))
+    tasks.extend(_bookkeeping_lock_deadlines(ref_date, cfg["vat_period"]))
 
     # Quarterly bookkeeping
     tasks.extend(_quarterly_bookkeeping_deadlines(ref_date))

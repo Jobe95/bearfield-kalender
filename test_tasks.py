@@ -153,3 +153,30 @@ def test_next_business_day_christmas_chain():
 def test_next_business_day_new_years_eve():
     """Dec 31 is holiday. 2025-12-31 is Wed → Jan 1 (holiday Thu) → Jan 2 Fri."""
     assert _next_business_day(date(2025, 12, 31)) == date(2026, 1, 2)
+
+def test_bookkeeping_lock_quarterly_50_day_rule():
+    """Quarterly VAT: lock deadline = 50 days after month end."""
+    cfg = dict(load_config("/nonexistent"))
+    cfg["vat_period"] = "quarterly"
+    tasks = generate_tasks(cfg, ref_date=date(2026, 3, 20))
+    lock_jan = next(t for t in tasks if t["id"] == "lock-2026-01")
+    # Jan 31 + 50 days = Mar 22 (Sunday) → Mar 23 (Monday)
+    assert lock_jan["deadline"] == "2026-03-23"
+
+def test_bookkeeping_lock_quarterly_feb():
+    """Quarterly VAT: February lock = 50 days after Feb 28."""
+    cfg = dict(load_config("/nonexistent"))
+    cfg["vat_period"] = "quarterly"
+    tasks = generate_tasks(cfg, ref_date=date(2026, 4, 1))
+    lock_feb = next(t for t in tasks if t["id"] == "lock-2026-02")
+    # Feb 28 + 50 days = Apr 19 (Sunday) → Apr 20 (Monday)
+    assert lock_feb["deadline"] == "2026-04-20"
+
+def test_bookkeeping_lock_monthly_uses_vat_deadline():
+    """Monthly VAT: lock deadline = 12th of 2nd month after."""
+    cfg = dict(load_config("/nonexistent"))
+    cfg["vat_period"] = "monthly"
+    tasks = generate_tasks(cfg, ref_date=date(2026, 3, 20))
+    lock_jan = next(t for t in tasks if t["id"] == "lock-2026-01")
+    # January → 12th of March = Mar 12 (Thursday, no shift)
+    assert lock_jan["deadline"] == "2026-03-12"

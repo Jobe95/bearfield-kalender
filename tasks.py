@@ -48,6 +48,17 @@ def load_state(path=None):
     """Load completion state from JSON file."""
     if path is None:
         path = STATE_FILE
+    # Migrate from old done_state.json if state.json doesn't exist
+    if not os.path.exists(path):
+        old_path = os.path.join(os.path.dirname(path), "done_state.json")
+        if os.path.exists(old_path):
+            try:
+                with open(old_path) as f:
+                    data = json.load(f)
+                save_state(data, path)
+                return data
+            except Exception:
+                pass
     try:
         with open(path) as f:
             return json.load(f)

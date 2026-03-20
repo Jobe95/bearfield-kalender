@@ -91,8 +91,8 @@ info "Sätter behörigheter..."
 find "$INSTALL_DIR" -name "*.sh" -exec chmod +x {} \;
 find "$INSTALL_DIR" -name "*.py" -exec chmod +x {} \;
 
-# Skapa done_state.json om den saknas
-[ -f "$INSTALL_DIR/done_state.json" ] || echo '{}' > "$INSTALL_DIR/done_state.json"
+# Skapa state.json om den saknas
+[ -f "$INSTALL_DIR/state.json" ] || echo '{}' > "$INSTALL_DIR/state.json"
 success "Behörigheter satta"
 
 # ── Installera Python-beroenden ────────────────────────────────────────────────

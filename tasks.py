@@ -169,7 +169,7 @@ def _quarterly_vat_deadlines(ref_date):
         for q in range(1, 5):
             qe = _quarter_end(year, q)
             # Due 12th of 2nd month after quarter end
-            due = _add_months(qe, 2).replace(day=12)
+            due = _next_business_day(_add_months(qe, 2).replace(day=12))
             if window_start <= due <= window_end:
                 q_months = {1: "jan–mars", 2: "apr–juni", 3: "jul–sep", 4: "okt–dec"}
                 tasks.append({
@@ -193,10 +193,10 @@ def _monthly_vat_deadlines(ref_date):
         for month in range(1, 13):
             # Due 26th of next month, except December which is due 12th of Feb
             if month == 12:
-                due = date(year + 1, 2, 12)
+                due = _next_business_day(date(year + 1, 2, 12))
             else:
                 next_m = month + 1
-                due = date(year, next_m, 26)
+                due = _next_business_day(date(year, next_m, 26))
             if window_start <= due <= window_end:
                 m_name = _swedish_month(month)
                 tasks.append({
@@ -219,7 +219,7 @@ def _employer_deadlines(ref_date):
     for year in range(ref_date.year, ref_date.year + 2):
         for month in range(1, 13):
             # Employer declaration for previous month, due 12th
-            due = date(year, month, 12)
+            due = _next_business_day(date(year, month, 12))
             if window_start <= due <= window_end:
                 prev_month = month - 1 if month > 1 else 12
                 prev_year = year if month > 1 else year - 1
@@ -243,7 +243,7 @@ def _prelim_tax_deadlines(ref_date):
 
     for year in range(ref_date.year, ref_date.year + 2):
         for month in range(1, 13):
-            due = date(year, month, 12)
+            due = _next_business_day(date(year, month, 12))
             if window_start <= due <= window_end:
                 tasks.append({
                     "id": f"tax-{year}-{month:02d}",
@@ -299,7 +299,7 @@ def _quarterly_bookkeeping_deadlines(ref_date):
             # Due end of month after quarter end
             qe = _quarter_end(year, q)
             due = _add_months(qe, 1)
-            due = due.replace(day=monthrange(due.year, due.month)[1])
+            due = _next_business_day(due.replace(day=monthrange(due.year, due.month)[1]))
             if window_start <= due <= window_end:
                 q_months = {1: "jan–mars", 2: "apr–juni", 3: "jul–sep", 4: "okt–dec"}
                 tasks.append({
@@ -325,7 +325,7 @@ def _annual_deadlines(cfg, ref_date):
         fy_end = date(year, fy_month, fy_day)
 
         # Bokslut — 6 months after FY end
-        bokslut_due = _add_months(fy_end, 6)
+        bokslut_due = _next_business_day(_add_months(fy_end, 6))
         if window_start <= bokslut_due <= window_end:
             tasks.append({
                 "id": f"bokslut-{year}",
@@ -337,7 +337,7 @@ def _annual_deadlines(cfg, ref_date):
             })
 
         # INK2 — 1st of 7th month after FY end
-        ink2_due = _add_months(fy_end, 7).replace(day=1)
+        ink2_due = _next_business_day(_add_months(fy_end, 7).replace(day=1))
         if window_start <= ink2_due <= window_end:
             tasks.append({
                 "id": f"ink2-{year}",
@@ -349,7 +349,7 @@ def _annual_deadlines(cfg, ref_date):
             })
 
         # Årsredovisning till Bolagsverket — 7 months after FY end
-        ar_due = _add_months(fy_end, 7)
+        ar_due = _next_business_day(_add_months(fy_end, 7))
         if window_start <= ar_due <= window_end:
             tasks.append({
                 "id": f"arsredovisning-{year}",

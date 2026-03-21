@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>se.bearfieldit.deadlinenotis</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>PLACEHOLDER_PATH/notify.py</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>PLACEHOLDER_HOUR</integer>
+        <key>Minute</key>
+        <integer>PLACEHOLDER_MINUTE</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/bearfield_notis.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/bearfield_notis_error.log</string>
+</dict>
+</plist>

@@ -183,7 +183,10 @@ PLIST_SRC="$INSTALL_DIR/se.bearfieldit.deadlinenotis.plist"
 PLIST_DEST="$HOME/Library/LaunchAgents/se.bearfieldit.deadlinenotis.plist"
 
 if [ -f "$PLIST_SRC" ]; then
-    sed "s|PLACEHOLDER_PATH|$INSTALL_DIR|g" "$PLIST_SRC" > "$PLIST_DEST"
+    sed -e "s|PLACEHOLDER_PATH|$INSTALL_DIR|g" \
+        -e "s|PLACEHOLDER_HOUR|$NOTIF_HOUR|g" \
+        -e "s|PLACEHOLDER_MINUTE|$NOTIF_MIN|g" \
+        "$PLIST_SRC" > "$PLIST_DEST"
     launchctl unload "$PLIST_DEST" 2>/dev/null || true
     launchctl load "$PLIST_DEST"
     success "Dagliga notiser aktiverade"

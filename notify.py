@@ -4,19 +4,29 @@ BearField IT — Deadline-notiser
 Körs varje morgon via launchd. Skickar Mac-notis om deadline inom 7 dagar.
 """
 
+import os
 import subprocess
 from datetime import date, datetime
 
 from tasks import generate_tasks, load_state
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ICON_PATH = os.path.join(SCRIPT_DIR, "icon.png")
+
 def days_until(deadline_str):
     return (datetime.strptime(deadline_str, "%Y-%m-%d").date() - date.today()).days
 
 def notify(title, subtitle, message):
-    script = f'''
-    display notification "{message}" with title "{title}" subtitle "{subtitle}"
-    '''
-    subprocess.run(["osascript", "-e", script])
+    try:
+        from Foundation import NSUserNotification, NSUserNotificationCenter
+        n = NSUserNotification.alloc().init()
+        n.setTitle_(title)
+        n.setSubtitle_(subtitle)
+        n.setInformativeText_(message)
+        NSUserNotificationCenter.defaultUserNotificationCenter().deliverNotification_(n)
+    except Exception:
+        script = f'display notification "{message}" with title "{title}" subtitle "{subtitle}"'
+        subprocess.run(["osascript", "-e", script])
 
 def main():
     done = load_state()

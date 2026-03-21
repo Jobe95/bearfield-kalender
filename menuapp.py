@@ -15,12 +15,25 @@ from tasks import load_config, save_config, generate_tasks, load_state, save_sta
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 HTML_FILE  = os.path.join(SCRIPT_DIR, "kalender.html")
+ICON_PATH  = os.path.join(SCRIPT_DIR, "icon.png")
 PORT = 7331
 
-VERSION = "v0.0.7"
-GITHUB_USER = "DITT_GITHUB_USERNAME"   # ← ändra detta
+VERSION = "v0.0.8"
+GITHUB_USER = "Jobe95"
 GITHUB_REPO = "bearfield-kalender"
 GITHUB_API  = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"
+
+def send_notification(title, subtitle, message):
+    """Skicka macOS-notis med björnikon."""
+    try:
+        from Foundation import NSUserNotification, NSUserNotificationCenter
+        n = NSUserNotification.alloc().init()
+        n.setTitle_(title)
+        n.setSubtitle_(subtitle)
+        n.setInformativeText_(message)
+        NSUserNotificationCenter.defaultUserNotificationCenter().deliverNotification_(n)
+    except Exception:
+        rumps.notification(title, subtitle, message)
 
 # ── Uppdateringskoll ───────────────────────────────────────────────────────────
 
@@ -37,6 +50,25 @@ def check_for_update():
     except Exception:
         pass
     return None
+
+def reload_notification_schedule(config):
+    """Regenerera och ladda om launchd-plist med nytt notistid."""
+    plist_src = os.path.join(SCRIPT_DIR, "se.bearfieldit.deadlinenotis.plist")
+    plist_dest = os.path.expanduser("~/Library/LaunchAgents/se.bearfieldit.deadlinenotis.plist")
+    if not os.path.isfile(plist_src):
+        return
+    time_str = config.get("notification_time", "08:00")
+    parts = time_str.split(":")
+    hour, minute = parts[0].lstrip("0") or "0", parts[1].lstrip("0") or "0"
+    with open(plist_src) as f:
+        content = f.read()
+    content = content.replace("PLACEHOLDER_PATH", SCRIPT_DIR)
+    content = content.replace("PLACEHOLDER_HOUR", hour)
+    content = content.replace("PLACEHOLDER_MINUTE", minute)
+    with open(plist_dest, "w") as f:
+        f.write(content)
+    subprocess.run(["launchctl", "unload", plist_dest], capture_output=True)
+    subprocess.run(["launchctl", "load", plist_dest], capture_output=True)
 
 def do_update():
     """Kör git pull och startar om appen."""
@@ -114,8 +146,10 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 data = json.loads(self.rfile.read(length))
                 save_config(data)
+                cfg = load_config()
+                reload_notification_schedule(cfg)
                 if _app:
-                    _app.config = load_config()
+                    _app.config = cfg
                     _app.rebuild_menu()
                 self.send_json(200, {"ok": True})
             except Exception as e:
@@ -153,11 +187,7 @@ class BearFieldApp(rumps.App):
         result = check_for_update()
         if result:
             latest, notes = result
-            rumps.notification(
-                "BearField IT — Uppdatering tillgänglig",
-                f"Version {latest} finns",
-                "Klicka på 🔄 Sök uppdateringar i menyn för att installera."
-            )
+            self._prompt_update(latest, notes)
 
     def rebuild_menu(self):
         done = load_state()
@@ -225,12 +255,12 @@ class BearFieldApp(rumps.App):
         tasks = generate_tasks(self.config)
         upcoming = [t for t in tasks if not done.get(t["id"]) and days_until(t["deadline"]) >= 0]
         if not upcoming:
-            rumps.notification("BearField IT", "Inga kommande deadlines", "Alla uppgifter är avklarade!")
+            send_notification("BearField IT", "Inga kommande deadlines", "Alla uppgifter är avklarade!")
             return
         task = sorted(upcoming, key=lambda t: t["deadline"])[0]
         d = days_until(task["deadline"])
         days_str = "idag!" if d == 0 else ("imorgon!" if d == 1 else f"om {d} dagar")
-        rumps.notification(
+        send_notification(
             "BearField IT — Deadline",
             task["title"],
             f"{task['cat']} · {days_str} ({task['deadline']})"
@@ -240,23 +270,26 @@ class BearFieldApp(rumps.App):
         subprocess.Popen(["python3", os.path.join(SCRIPT_DIR, "menuapp.py")])
         rumps.quit_application()
 
+    def _prompt_update(self, latest, notes):
+        msg = f"Version {latest} finns tillgänglig.\n\n{notes}\n\nVill du uppdatera nu?"
+        response = rumps.alert(
+            title="Uppdatering tillgänglig",
+            message=msg,
+            ok="Uppdatera",
+            cancel="Hoppa över"
+        )
+        if response == 1:
+            do_update()
+
     @rumps.clicked("🔄  Sök uppdateringar")
     def check_update(self, _):
         def _check():
             result = check_for_update()
             if not result:
-                rumps.notification("BearField IT", "Redan uppdaterad", f"Du kör senaste versionen ({VERSION})")
+                send_notification("BearField IT", "Redan uppdaterad", f"Du kör senaste versionen ({VERSION})")
                 return
             latest, notes = result
-            msg = f"Version {latest} finns tillgänglig.\n\n{notes}\n\nVill du uppdatera nu?"
-            response = rumps.alert(
-                title="Uppdatering tillgänglig",
-                message=msg,
-                ok="Uppdatera",
-                cancel="Senare"
-            )
-            if response == 1:
-                do_update()
+            self._prompt_update(latest, notes)
         threading.Thread(target=_check, daemon=True).start()
 
     @rumps.timer(3600)

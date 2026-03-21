@@ -18,7 +18,7 @@ HTML_FILE  = os.path.join(SCRIPT_DIR, "kalender.html")
 ICON_PATH  = os.path.join(SCRIPT_DIR, "icon.png")
 PORT = 7331
 
-VERSION = "v0.0.13"
+VERSION = "v0.0.14"
 GITHUB_USER = "Jobe95"
 GITHUB_REPO = "bearfield-kalender"
 GITHUB_API  = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"
@@ -99,37 +99,32 @@ def _git_root():
     return SCRIPT_DIR
 
 def do_update():
-    """Kör git pull, bygg om .app och starta om."""
-    log = os.path.expanduser("/tmp/bearfield_update.log")
+    """Pull senaste koden, bygg om via shell-skript, starta om."""
     try:
         git_root = _git_root()
-        with open(log, "w", encoding="utf-8") as f:
-            f.write(f"git_root: {git_root}\n")
-            f.write(f"SCRIPT_DIR: {SCRIPT_DIR}\n")
-
-        def _run(cmd, **kwargs):
-            r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", **kwargs)
-            with open(log, "a", encoding="utf-8") as f:
-                f.write(f"\n$ {' '.join(cmd)}\nrc={r.returncode}\nout: {r.stdout}\nerr: {r.stderr}\n")
-            if r.returncode != 0:
-                raise RuntimeError(f"{' '.join(cmd)}\n{r.stderr.strip()}")
-            return r
-
-        _run(["git", "-C", git_root, "fetch", "--tags"])
-        _run(["git", "-C", git_root, "reset", "--hard"])
-        _run(["git", "-C", git_root, "clean", "-fd"])
-        _run(["git", "-C", git_root, "checkout", "main"])
-        _run(["git", "-C", git_root, "reset", "--hard", "origin/main"])
-        # Rebuild .app using system python (not bundled)
-        sys_python = "/opt/homebrew/bin/python3"
-        if not os.path.isfile(sys_python):
-            sys_python = "/usr/bin/python3"
         dist_dir = os.path.join(git_root, "dist")
-        env = os.environ.copy()
-        env.pop("PYTHONPATH", None)
-        env.pop("PYTHONHOME", None)
-        _run([sys_python, "setup.py", "py2app", "--dist-dir", dist_dir, "-q"], cwd=git_root, env=env)
-        relaunch_app()
+        app_path = os.path.join(dist_dir, "BearField IT.app")
+        # Write a self-contained shell script that runs in a clean environment
+        script = f"""#!/bin/bash
+exec > /tmp/bearfield_update.log 2>&1
+set -ex
+cd "{git_root}"
+git fetch --tags
+git reset --hard
+git clean -fd -e config.json -e state.json -e done_state.json
+git checkout main
+git reset --hard origin/main
+rm -rf dist build
+python3 setup.py py2app --dist-dir "{dist_dir}"
+sleep 1
+open "{app_path}"
+"""
+        script_path = "/tmp/bearfield_do_update.sh"
+        with open(script_path, "w") as f:
+            f.write(script)
+        os.chmod(script_path, 0o755)
+        subprocess.Popen(["/bin/bash", script_path])
+        rumps.quit_application()
     except Exception as e:
         rumps.alert("Uppdatering misslyckades", str(e))
 

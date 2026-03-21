@@ -18,7 +18,7 @@ HTML_FILE  = os.path.join(SCRIPT_DIR, "kalender.html")
 ICON_PATH  = os.path.join(SCRIPT_DIR, "icon.png")
 PORT = 7331
 
-VERSION = "v0.0.9"
+VERSION = "v0.0.10"
 GITHUB_USER = "Jobe95"
 GITHUB_REPO = "bearfield-kalender"
 GITHUB_API  = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"
@@ -90,13 +90,27 @@ def relaunch_app():
         subprocess.Popen(["python3", os.path.join(SCRIPT_DIR, "menuapp.py")])
     rumps.quit_application()
 
+def _git_root():
+    """Hitta git-rooten (kan vara utanför .app-bundle)."""
+    if ".app/Contents/Resources" in SCRIPT_DIR:
+        return SCRIPT_DIR.split(".app/")[0].rsplit("/dist/", 1)[0]
+    return SCRIPT_DIR
+
 def do_update():
-    """Kör git pull och startar om appen."""
+    """Kör git pull, bygg om .app och starta om."""
     try:
-        subprocess.run(["git", "-C", SCRIPT_DIR, "pull", "--ff-only"], check=True)
+        git_root = _git_root()
+        subprocess.run(["git", "-C", git_root, "fetch", "--tags"], check=True)
+        subprocess.run(["git", "-C", git_root, "pull", "--ff-only"], check=True)
+        # Rebuild .app bundle
+        dist_dir = os.path.join(git_root, "dist")
+        subprocess.run(
+            ["python3", "setup.py", "py2app", "--dist-dir", dist_dir, "-q"],
+            cwd=git_root, check=True
+        )
         relaunch_app()
     except subprocess.CalledProcessError as e:
-        rumps.alert("Uppdatering misslyckades", f"git pull returnerade fel:\n{e}")
+        rumps.alert("Uppdatering misslyckades", str(e))
 
 # ── Webbserver ─────────────────────────────────────────────────────────────────
 

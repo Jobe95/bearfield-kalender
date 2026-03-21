@@ -164,14 +164,17 @@ find "$INSTALL_DIR" -name "*.py" -exec chmod +x {} \;
 success "Behörigheter satta"
 
 # ── Installera Python-beroenden ────────────────────────────────────────────────
-info "Installerar rumps..."
-if pip3 install rumps --break-system-packages -q 2>/dev/null; then
-    success "rumps installerat"
-elif pip3 install rumps -q 2>/dev/null; then
-    success "rumps installerat"
-else
-    error "Kunde inte installera rumps. Prova: pip3 install rumps --break-system-packages"
-fi
+info "Installerar beroenden..."
+for pkg in rumps py2app; do
+    if pip3 install "$pkg" --break-system-packages -q 2>/dev/null; then
+        true
+    elif pip3 install "$pkg" -q 2>/dev/null; then
+        true
+    else
+        error "Kunde inte installera $pkg"
+    fi
+done
+success "Python-beroenden installerade"
 
 # ── Sätt upp launchd-notiser ───────────────────────────────────────────────────
 # Read notification time from config
@@ -194,22 +197,32 @@ else
     warn "Plist-fil saknas — notiser ej konfigurerade"
 fi
 
+# ── Bygg .app-bundle ──────────────────────────────────────────────────────────
+info "Bygger applikation..."
+APP_DIR="$INSTALL_DIR/dist/BearField IT.app"
+(cd "$INSTALL_DIR" && python3 setup.py py2app --dist-dir "$INSTALL_DIR/dist" -q 2>/dev/null)
+if [ -d "$APP_DIR" ]; then
+    success "Applikation byggd"
+else
+    error "Kunde inte bygga .app-bundle"
+fi
+
 # ── Starta menyappen ───────────────────────────────────────────────────────────
 info "Startar BearField Kalender..."
 
 # Stoppa eventuell gammal instans
+pkill -f "BearField IT" 2>/dev/null || true
 pkill -f "menuapp.py" 2>/dev/null || true
 sleep 1
 
-# Starta i bakgrunden
-nohup python3 "$INSTALL_DIR/menuapp.py" > /tmp/bearfield_menu.log 2>&1 &
+open "$APP_DIR"
 sleep 2
 
-if pgrep -f "menuapp.py" > /dev/null; then
+if pgrep -f "BearField IT" > /dev/null; then
     success "Menyappen körs — björnen 🐻 syns i menyraden"
 else
     warn "Appen startade inte automatiskt. Starta manuellt:"
-    echo "   python3 \"$INSTALL_DIR/menuapp.py\""
+    echo "   open \"$APP_DIR\""
 fi
 
 # ── Autostart vid inloggning ───────────────────────────────────────────────────
@@ -224,13 +237,13 @@ cat > "$MENU_PLIST" << PLISTEOF
     <string>se.bearfieldit.menuapp</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/python3</string>
-        <string>$INSTALL_DIR/menuapp.py</string>
+        <string>/usr/bin/open</string>
+        <string>$APP_DIR</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
-    <true/>
+    <false/>
     <key>StandardOutPath</key>
     <string>/tmp/bearfield_menu.log</string>
     <key>StandardErrorPath</key>

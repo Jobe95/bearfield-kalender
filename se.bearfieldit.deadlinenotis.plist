@@ -7,8 +7,8 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/python3</string>
-        <string>PLACEHOLDER_PATH/notify.py</string>
+        <string>PLACEHOLDER_PATH/dist/BearField IT.app/Contents/MacOS/BearField IT</string>
+        <string>--notify</string>
     </array>
 
     <key>StartCalendarInterval</key>

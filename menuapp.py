@@ -18,7 +18,7 @@ HTML_FILE  = os.path.join(SCRIPT_DIR, "kalender.html")
 ICON_PATH  = os.path.join(SCRIPT_DIR, "icon.png")
 PORT = 7331
 
-VERSION = "v0.0.16"
+VERSION = "v0.0.17"
 GITHUB_USER = "Jobe95"
 GITHUB_REPO = "bearfield-kalender"
 GITHUB_API  = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"
@@ -347,6 +347,13 @@ class BearFieldApp(rumps.App):
         self.rebuild_menu()
 
 if __name__ == "__main__":
+    import sys
+    if "--notify" in sys.argv:
+        # Kör som notis-skript (anropas av launchd)
+        from notify import main as notify_main
+        notify_main()
+        sys.exit(0)
+
     threading.Thread(
         target=lambda: HTTPServer(("127.0.0.1", PORT), Handler).serve_forever(),
         daemon=True

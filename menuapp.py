@@ -18,7 +18,7 @@ HTML_FILE  = os.path.join(SCRIPT_DIR, "kalender.html")
 ICON_PATH  = os.path.join(SCRIPT_DIR, "icon.png")
 PORT = 7331
 
-VERSION = "v0.0.8"
+VERSION = "v0.0.9"
 GITHUB_USER = "Jobe95"
 GITHUB_REPO = "bearfield-kalender"
 GITHUB_API  = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"
@@ -70,13 +70,31 @@ def reload_notification_schedule(config):
     subprocess.run(["launchctl", "unload", plist_dest], capture_output=True)
     subprocess.run(["launchctl", "load", plist_dest], capture_output=True)
 
+def _app_bundle_path():
+    """Hitta .app-bundle relativt till SCRIPT_DIR."""
+    # When running from py2app bundle, SCRIPT_DIR is inside .app/Contents/Resources
+    if ".app/Contents/Resources" in SCRIPT_DIR:
+        return SCRIPT_DIR.split(".app/")[0] + ".app"
+    # Fallback: look for app in dist/
+    app_path = os.path.join(SCRIPT_DIR, "dist", "BearField IT.app")
+    if os.path.isdir(app_path):
+        return app_path
+    return None
+
+def relaunch_app():
+    """Starta om appen via .app-bundle eller python3 som fallback."""
+    app_path = _app_bundle_path()
+    if app_path:
+        subprocess.Popen(["open", app_path])
+    else:
+        subprocess.Popen(["python3", os.path.join(SCRIPT_DIR, "menuapp.py")])
+    rumps.quit_application()
+
 def do_update():
     """Kör git pull och startar om appen."""
     try:
         subprocess.run(["git", "-C", SCRIPT_DIR, "pull", "--ff-only"], check=True)
-        # Starta om appen
-        subprocess.Popen(["python3", os.path.join(SCRIPT_DIR, "menuapp.py")])
-        rumps.quit_application()
+        relaunch_app()
     except subprocess.CalledProcessError as e:
         rumps.alert("Uppdatering misslyckades", f"git pull returnerade fel:\n{e}")
 
@@ -267,8 +285,7 @@ class BearFieldApp(rumps.App):
         )
 
     def restart_app(self, _):
-        subprocess.Popen(["python3", os.path.join(SCRIPT_DIR, "menuapp.py")])
-        rumps.quit_application()
+        relaunch_app()
 
     def _prompt_update(self, latest, notes):
         msg = f"Version {latest} finns tillgänglig.\n\n{notes}\n\nVill du uppdatera nu?"
@@ -283,14 +300,12 @@ class BearFieldApp(rumps.App):
 
     @rumps.clicked("🔄  Sök uppdateringar")
     def check_update(self, _):
-        def _check():
-            result = check_for_update()
-            if not result:
-                send_notification("BearField IT", "Redan uppdaterad", f"Du kör senaste versionen ({VERSION})")
-                return
-            latest, notes = result
-            self._prompt_update(latest, notes)
-        threading.Thread(target=_check, daemon=True).start()
+        result = check_for_update()
+        if not result:
+            rumps.alert("Redan uppdaterad", f"Du kör senaste versionen ({VERSION})")
+            return
+        latest, notes = result
+        self._prompt_update(latest, notes)
 
     @rumps.timer(3600)
     def auto_refresh(self, _):

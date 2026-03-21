@@ -18,7 +18,7 @@ HTML_FILE  = os.path.join(SCRIPT_DIR, "kalender.html")
 ICON_PATH  = os.path.join(SCRIPT_DIR, "icon.png")
 PORT = 7331
 
-VERSION = "v0.0.10"
+VERSION = "v0.0.11"
 GITHUB_USER = "Jobe95"
 GITHUB_REPO = "bearfield-kalender"
 GITHUB_API  = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"
@@ -93,7 +93,9 @@ def relaunch_app():
 def _git_root():
     """Hitta git-rooten (kan vara utanför .app-bundle)."""
     if ".app/Contents/Resources" in SCRIPT_DIR:
-        return SCRIPT_DIR.split(".app/")[0].rsplit("/dist/", 1)[0]
+        # .../BearFieldKalender/dist/BearField IT.app/Contents/Resources → .../BearFieldKalender
+        app_path = SCRIPT_DIR.split(".app/Contents/Resources")[0] + ".app"
+        return os.path.dirname(os.path.dirname(app_path))
     return SCRIPT_DIR
 
 def do_update():
@@ -101,6 +103,7 @@ def do_update():
     try:
         git_root = _git_root()
         subprocess.run(["git", "-C", git_root, "fetch", "--tags"], check=True)
+        subprocess.run(["git", "-C", git_root, "checkout", "main"], check=True)
         subprocess.run(["git", "-C", git_root, "pull", "--ff-only"], check=True)
         # Rebuild .app bundle
         dist_dir = os.path.join(git_root, "dist")

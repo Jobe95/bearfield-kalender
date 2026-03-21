@@ -10,8 +10,14 @@ from datetime import date, timedelta
 from calendar import monthrange
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(SCRIPT_DIR, "config.json")
-STATE_FILE = os.path.join(SCRIPT_DIR, "state.json")
+# When running from .app bundle, config/state live in the git root
+if ".app/Contents/Resources" in SCRIPT_DIR:
+    _data_dir = os.path.dirname(os.path.dirname(
+        SCRIPT_DIR.split(".app/Contents/Resources")[0] + ".app"))
+else:
+    _data_dir = SCRIPT_DIR
+CONFIG_FILE = os.path.join(_data_dir, "config.json")
+STATE_FILE = os.path.join(_data_dir, "state.json")
 
 DEFAULTS = {
     "org_nr": "",

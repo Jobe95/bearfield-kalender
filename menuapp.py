@@ -18,7 +18,7 @@ HTML_FILE  = os.path.join(SCRIPT_DIR, "kalender.html")
 ICON_PATH  = os.path.join(SCRIPT_DIR, "icon.png")
 PORT = 7331
 
-VERSION = "v0.0.15"
+VERSION = "v0.0.16"
 GITHUB_USER = "Jobe95"
 GITHUB_REPO = "bearfield-kalender"
 GITHUB_API  = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"
@@ -53,7 +53,8 @@ def check_for_update():
 
 def reload_notification_schedule(config):
     """Regenerera och ladda om launchd-plist med nytt notistid."""
-    plist_src = os.path.join(SCRIPT_DIR, "se.bearfieldit.deadlinenotis.plist")
+    root = _git_root()
+    plist_src = os.path.join(root, "se.bearfieldit.deadlinenotis.plist")
     plist_dest = os.path.expanduser("~/Library/LaunchAgents/se.bearfieldit.deadlinenotis.plist")
     if not os.path.isfile(plist_src):
         return
@@ -62,7 +63,7 @@ def reload_notification_schedule(config):
     hour, minute = parts[0].lstrip("0") or "0", parts[1].lstrip("0") or "0"
     with open(plist_src) as f:
         content = f.read()
-    content = content.replace("PLACEHOLDER_PATH", SCRIPT_DIR)
+    content = content.replace("PLACEHOLDER_PATH", root)
     content = content.replace("PLACEHOLDER_HOUR", hour)
     content = content.replace("PLACEHOLDER_MINUTE", minute)
     with open(plist_dest, "w") as f:

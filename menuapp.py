@@ -18,7 +18,7 @@ HTML_FILE  = os.path.join(SCRIPT_DIR, "kalender.html")
 ICON_PATH  = os.path.join(SCRIPT_DIR, "icon.png")
 PORT = 7331
 
-VERSION = "v0.0.12"
+VERSION = "v0.0.13"
 GITHUB_USER = "Jobe95"
 GITHUB_REPO = "bearfield-kalender"
 GITHUB_API  = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"
@@ -84,10 +84,10 @@ def _app_bundle_path():
 def relaunch_app():
     """Starta om appen via .app-bundle eller python3 som fallback."""
     app_path = _app_bundle_path()
-    if app_path:
-        subprocess.Popen(["open", app_path])
-    else:
-        subprocess.Popen(["python3", os.path.join(SCRIPT_DIR, "menuapp.py")])
+    if not app_path:
+        app_path = os.path.join(_git_root(), "dist", "BearField IT.app")
+    # Launch after a delay so the current process has time to quit
+    subprocess.Popen(["bash", "-c", f'sleep 2 && open "{app_path}"'])
     rumps.quit_application()
 
 def _git_root():
@@ -100,20 +100,37 @@ def _git_root():
 
 def do_update():
     """Kör git pull, bygg om .app och starta om."""
+    log = os.path.expanduser("/tmp/bearfield_update.log")
     try:
         git_root = _git_root()
-        subprocess.run(["git", "-C", git_root, "fetch", "--tags"], check=True)
-        subprocess.run(["git", "-C", git_root, "reset", "--hard"], check=True)
-        subprocess.run(["git", "-C", git_root, "checkout", "main"], check=True)
-        subprocess.run(["git", "-C", git_root, "reset", "--hard", "origin/main"], check=True)
-        # Rebuild .app bundle
+        with open(log, "w", encoding="utf-8") as f:
+            f.write(f"git_root: {git_root}\n")
+            f.write(f"SCRIPT_DIR: {SCRIPT_DIR}\n")
+
+        def _run(cmd, **kwargs):
+            r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", **kwargs)
+            with open(log, "a", encoding="utf-8") as f:
+                f.write(f"\n$ {' '.join(cmd)}\nrc={r.returncode}\nout: {r.stdout}\nerr: {r.stderr}\n")
+            if r.returncode != 0:
+                raise RuntimeError(f"{' '.join(cmd)}\n{r.stderr.strip()}")
+            return r
+
+        _run(["git", "-C", git_root, "fetch", "--tags"])
+        _run(["git", "-C", git_root, "reset", "--hard"])
+        _run(["git", "-C", git_root, "clean", "-fd"])
+        _run(["git", "-C", git_root, "checkout", "main"])
+        _run(["git", "-C", git_root, "reset", "--hard", "origin/main"])
+        # Rebuild .app using system python (not bundled)
+        sys_python = "/opt/homebrew/bin/python3"
+        if not os.path.isfile(sys_python):
+            sys_python = "/usr/bin/python3"
         dist_dir = os.path.join(git_root, "dist")
-        subprocess.run(
-            ["python3", "setup.py", "py2app", "--dist-dir", dist_dir, "-q"],
-            cwd=git_root, check=True
-        )
+        env = os.environ.copy()
+        env.pop("PYTHONPATH", None)
+        env.pop("PYTHONHOME", None)
+        _run([sys_python, "setup.py", "py2app", "--dist-dir", dist_dir, "-q"], cwd=git_root, env=env)
         relaunch_app()
-    except subprocess.CalledProcessError as e:
+    except Exception as e:
         rumps.alert("Uppdatering misslyckades", str(e))
 
 # ── Webbserver ─────────────────────────────────────────────────────────────────

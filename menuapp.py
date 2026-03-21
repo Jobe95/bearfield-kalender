@@ -18,7 +18,7 @@ HTML_FILE  = os.path.join(SCRIPT_DIR, "kalender.html")
 ICON_PATH  = os.path.join(SCRIPT_DIR, "icon.png")
 PORT = 7331
 
-VERSION = "v0.0.11"
+VERSION = "v0.0.12"
 GITHUB_USER = "Jobe95"
 GITHUB_REPO = "bearfield-kalender"
 GITHUB_API  = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"
@@ -103,8 +103,9 @@ def do_update():
     try:
         git_root = _git_root()
         subprocess.run(["git", "-C", git_root, "fetch", "--tags"], check=True)
+        subprocess.run(["git", "-C", git_root, "reset", "--hard"], check=True)
         subprocess.run(["git", "-C", git_root, "checkout", "main"], check=True)
-        subprocess.run(["git", "-C", git_root, "pull", "--ff-only"], check=True)
+        subprocess.run(["git", "-C", git_root, "reset", "--hard", "origin/main"], check=True)
         # Rebuild .app bundle
         dist_dir = os.path.join(git_root, "dist")
         subprocess.run(

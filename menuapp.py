@@ -18,7 +18,7 @@ HTML_FILE  = os.path.join(SCRIPT_DIR, "kalender.html")
 ICON_PATH  = os.path.join(SCRIPT_DIR, "icon.png")
 PORT = 7331
 
-VERSION = "v0.0.14"
+VERSION = "v0.0.15"
 GITHUB_USER = "Jobe95"
 GITHUB_REPO = "bearfield-kalender"
 GITHUB_API  = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"
@@ -98,7 +98,7 @@ def _git_root():
         return os.path.dirname(os.path.dirname(app_path))
     return SCRIPT_DIR
 
-def do_update():
+def do_update(latest=""):
     """Pull senaste koden, bygg om via shell-skript, starta om."""
     try:
         git_root = _git_root()
@@ -115,14 +115,18 @@ git clean -fd -e config.json -e state.json -e done_state.json
 git checkout main
 git reset --hard origin/main
 rm -rf dist build
-python3 setup.py py2app --dist-dir "{dist_dir}"
-sleep 1
+python3 setup.py py2app -A --dist-dir "{dist_dir}" -q
 open "{app_path}"
 """
         script_path = "/tmp/bearfield_do_update.sh"
         with open(script_path, "w") as f:
             f.write(script)
         os.chmod(script_path, 0o755)
+        send_notification(
+            "BearField IT",
+            f"Uppdaterar till {latest}..." if latest else "Uppdaterar...",
+            "Appen startar om automatiskt"
+        )
         subprocess.Popen(["/bin/bash", script_path])
         rumps.quit_application()
     except Exception as e:
@@ -326,7 +330,7 @@ class BearFieldApp(rumps.App):
             cancel="Hoppa över"
         )
         if response == 1:
-            do_update()
+            do_update(latest)
 
     @rumps.clicked("🔄  Sök uppdateringar")
     def check_update(self, _):

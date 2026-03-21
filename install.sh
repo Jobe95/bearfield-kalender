@@ -200,7 +200,7 @@ fi
 # ── Bygg .app-bundle ──────────────────────────────────────────────────────────
 info "Bygger applikation..."
 APP_DIR="$INSTALL_DIR/dist/BearField IT.app"
-(cd "$INSTALL_DIR" && python3 setup.py py2app --dist-dir "$INSTALL_DIR/dist" -q 2>/dev/null)
+(cd "$INSTALL_DIR" && rm -rf dist build && python3 setup.py py2app -A --dist-dir "$INSTALL_DIR/dist" -q 2>/dev/null)
 if [ -d "$APP_DIR" ]; then
     success "Applikation byggd"
 else
